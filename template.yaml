@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  song-recommender-bot
+
+  Sample SAM Template for song-recommender-bot
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 30
+
+Resources:
+  SongRecommnedBot:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: hello_world/
+      Handler: app.lambda_handler
+      Runtime: python3.7
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Events:
+        Run:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Name: check-mentions-to-songRecommendBot
+            Description: checking mentions to bot account
+            Enabled: True
+
+Outputs:
+  SongRecommnedBot:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt SongRecommnedBot.Arn
+  SongRecommnedBotIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt SongRecommnedBotRole.Arn
