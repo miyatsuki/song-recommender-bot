@@ -4,16 +4,21 @@ from http import HTTPStatus
 from datetime import datetime
 import math
 import random
+import jaconv
+
 
 def get_mentions(twitter):
     # ツイート処理
-    res = twitter.get("https://api.twitter.com/1.1/statuses/mentions_timeline.json", params={"count": 200})
+    res = twitter.get(
+        "https://api.twitter.com/1.1/statuses/mentions_timeline.json",
+        params={"count": 200},
+    )
 
     # エラー処理
     if res.status_code != HTTPStatus.OK:
         print(f"Failed: {res.status_code}")
         return []
-    
+
     mentions = []
     for mention in res.json():
 
@@ -21,15 +26,24 @@ def get_mentions(twitter):
         if mention["in_reply_to_status_id_str"]:
             continue
 
-        unixtime = int(datetime.strptime(mention["created_at"], '%a %b %d %H:%M:%S %z %Y').timestamp())
-        mentions.append((unixtime, mention["user"]["screen_name"], mention["text"], mention["id"]))
+        unixtime = int(
+            datetime.strptime(
+                mention["created_at"], "%a %b %d %H:%M:%S %z %Y"
+            ).timestamp()
+        )
+        mentions.append(
+            (unixtime, mention["user"]["screen_name"], mention["text"], mention["id"])
+        )
 
     return mentions
 
 
 def get_new_tweets(twitter, screen_name):
     # ツイート処理
-    res = twitter.get("https://api.twitter.com/1.1/statuses/user_timeline.json", params={"screen_name": screen_name, "count": 20})
+    res = twitter.get(
+        "https://api.twitter.com/1.1/statuses/user_timeline.json",
+        params={"screen_name": screen_name, "count": 20},
+    )
 
     # エラー処理
     tweets = []
@@ -50,14 +64,17 @@ def get_new_tweets(twitter, screen_name):
 
     return tweets
 
+
 N = 1
+
+
 def get_wv_from_tweets(features, feature_idf_map, tweets):
     wv = [0.0] * len(features)
 
     count = 0
     for tweet in tweets:
         for i in range(len(tweet) - N + 1):
-            token = tweet[i:i+N]
+            token = tweet[i : i + N]
             if token in features:
                 # この時点でidfを計算
                 wv[features.index(token)] += feature_idf_map[token]
@@ -80,6 +97,7 @@ def get_wv_from_tweets(features, feature_idf_map, tweets):
 
     return wv
 
+
 def get_nearest_title(title_vector_map, wv):
     max_sim = 0
     max_title = None
@@ -99,8 +117,12 @@ def get_nearest_title(title_vector_map, wv):
     else:
         return max_title
 
+
 def post_tweet(twitter, body, reply_id):
-    res = twitter.post("https://api.twitter.com/1.1/statuses/update.json", params={"status": body, "in_reply_to_status_id": reply_id})
+    res = twitter.post(
+        "https://api.twitter.com/1.1/statuses/update.json",
+        params={"status": body, "in_reply_to_status_id": reply_id},
+    )
     print(res)
 
     # エラー処理
@@ -141,7 +163,7 @@ def lambda_handler(event, context):
         keys["CONSUMER_KEY"],
         keys["CONSUMER_SECRET"],
         keys["ACCESS_TOKEN_KEY"],
-        keys["ACCESS_TOKEN_SECRET"]
+        keys["ACCESS_TOKEN_SECRET"],
     )
 
     current_unixtime = datetime.now().timestamp()
@@ -171,7 +193,7 @@ def lambda_handler(event, context):
 
     user_tweets_map = {}
     for screen_name in new_mentioned_user_map.keys():
-        tweets =  get_new_tweets(twitter, screen_name)
+        tweets = get_new_tweets(twitter, screen_name)
         if tweets:
             user_tweets_map[screen_name] = tweets
 
@@ -217,16 +239,14 @@ def lambda_handler(event, context):
     with open("url_map.json") as f:
         title_url_map = json.load(f)
 
-
-    random_sentences = [
-        "こちらの曲はいかがでしょうか",
-        "こちらの曲をどうぞ",
-        "この曲がオススメです",
-        "この曲はどうですか"
-    ]
+    random_sentences = ["こちらの曲はいかがでしょうか", "こちらの曲をどうぞ", "この曲がオススメです", "この曲はどうですか"]
     for screen_name, title in user_title_map.items():
         sentence = random.choice(random_sentences)
         reply_id = new_mentioned_user_map[screen_name]
-        post_tweet(twitter, "@{} {}\n{}\n{}".format(screen_name, sentence, title, title_url_map[title]), reply_id)
+        post_tweet(
+            twitter,
+            "@{} {}\n{}\n{}".format(screen_name, sentence, title, title_url_map[title]),
+            reply_id,
+        )
 
     return
