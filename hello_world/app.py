@@ -4,7 +4,6 @@ from http import HTTPStatus
 from datetime import datetime
 import math
 import random
-import jaconv
 
 
 def get_mentions(twitter):
@@ -65,27 +64,24 @@ def get_new_tweets(twitter, screen_name):
     return tweets
 
 
-N = 1
+def get_wv_from_tweets(feature_wv_map, tweets):
+    wv_length = 200
+    wv = [0.0] * wv_length
 
-
-def get_wv_from_tweets(features, feature_idf_map, tweets):
-    wv = [0.0] * len(features)
-
-    count = 0
+    token_count = 0
     for tweet in tweets:
-        for i in range(len(tweet) - N + 1):
-            token = tweet[i : i + N]
-            if token in features:
-                # この時点でidfを計算
-                wv[features.index(token)] += feature_idf_map[token]
-                count += 1
+        for token in tweet:
+            if token in feature_wv_map:
+                for i, val in enumerate(feature_wv_map[token]):
+                    wv[i] += val
+                    token_count += 1
 
-    if count == 0:
+    if token_count == 0:
         return
 
     # tf対応
     for i in range(len(wv)):
-        wv[i] /= count
+        wv[i] /= token_count
 
     # L2正規化
     l2_acc = 0
@@ -203,15 +199,12 @@ def lambda_handler(event, context):
     else:
         print(user_tweets_map)
 
-    with open("features.json") as f:
-        features = json.load(f)
-
-    with open("feature_idf.json") as f:
-        feature_idf_map = json.load(f)
+    with open("features_wv.json") as f:
+        feature_wv_map = json.load(f)
 
     user_wv_map = {}
     for screen_name, tweets in user_tweets_map.items():
-        wv = get_wv_from_tweets(features, feature_idf_map, tweets)
+        wv = get_wv_from_tweets(feature_wv_map, tweets)
         if wv:
             user_wv_map[screen_name] = wv
 
@@ -221,12 +214,12 @@ def lambda_handler(event, context):
     else:
         print(user_wv_map)
 
-    with open("title_tfidf.json") as f:
-        title_vector_map = json.load(f)
+    with open("title_wv.json") as f:
+        title_wv_map = json.load(f)
 
     user_title_map = {}
     for screen_name, wv in user_wv_map.items():
-        nearest_title = get_nearest_title(title_vector_map, wv)
+        nearest_title = get_nearest_title(title_wv_map, wv)
         if nearest_title:
             user_title_map[screen_name] = nearest_title
 
